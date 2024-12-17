@@ -1,0 +1,44 @@
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingArguments
+from datasets import load_dataset
+
+# Load your dataset
+# Replace 'your_dataset' with the actual dataset path or name
+dataset = load_dataset('csv', data_files='combined_preprocessed_data.csv')
+
+# Load the tokenizer and model
+model_name = "meta-llama/Llama-2-7b"  # Replace with your model's path
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForCausalLM.from_pretrained(model_name)
+
+# Tokenize the dataset
+def tokenize_function(examples):
+    return tokenizer(examples['text'], truncation=True)
+
+tokenized_datasets = dataset.map(tokenize_function, batched=True)
+
+# Prepare the training arguments
+training_args = TrainingArguments(
+    output_dir="./results",
+    evaluation_strategy="epoch",
+    learning_rate=2e-5,
+    per_device_train_batch_size=2,
+    num_train_epochs=3,
+    weight_decay=0.01,
+    logging_dir='./logs',
+)
+
+# Create a Trainer instance
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=tokenized_datasets['train'],
+    eval_dataset=tokenized_datasets['validation'],
+)
+
+# Start the training process
+trainer.train()
+
+# Save the fine-tuned model
+model.save_pretrained("./fine-tuned-llama2")
+tokenizer.save_pretrained("./fine-tuned-llama2")
